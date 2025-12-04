@@ -344,8 +344,11 @@ if (isset($_GET['id']) && !isset($_POST['create_schedule'])) {
 
 <?php
 }
-?> = $db->prepare($insert_query);
-                $insert_stmt->bindParam(':league_id', $league_id);
-                $insert_stmt->bindParam(':home_team_id', $home_team['id']);
-                $insert_stmt->bindParam(':away_team_id', $away_team['id']);
-                $insert_stmt
+        $venue_stmt = $db->prepare($venue_query);
+        $venue_stmt->bindParam(':league_id', $league_id);
+        $venue_stmt->bindParam(':venue_id', $venue_id);
+        $venue_stmt->execute();
+        if ($venue_stmt->rowCount() == 0) {
+            showMessage("Invalid venue selected.", "error");
+            redirect('schedule_matches.php?league_id=' . $league_id);
+        }
