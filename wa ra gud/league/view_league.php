@@ -66,11 +66,11 @@ if ($current_user['role'] != 'admin') {
 // Get teams with detailed information
 $teams_query = "SELECT t.*, u.first_name, u.last_name, u.username,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count,
-                       (SELECT COUNT(*) FROM matches WHERE (home_team_id = t.id OR away_team_id = t.id) AND status = 'completed') as matches_played
+                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
                 FROM teams t
                 JOIN users u ON t.owner_id = u.id
                 WHERE t.league_id = :league_id
-                ORDER BY t.points DESC, t.wins DESC, t.name ASC";
+                ORDER BY t.points DESC, t.score_difference DESC, t.score_for DESC, t.name ASC";
 $teams_stmt = $db->prepare($teams_query);
 $teams_stmt->bindParam(':league_id', $league_id);
 $teams_stmt->execute();
@@ -773,8 +773,10 @@ $can_register = !$user_team && !$pending_request && !$is_full && !$deadline_pass
                             <th>W</th>
                             <th>D</th>
                             <th>L</th>
+                            <th>SF</th>
+                            <th>SA</th>
+                            <th>SD</th>
                             <th>Pts</th>
-                            <th>Form</th>
                         </tr>
                     </thead>
                     <tbody>
