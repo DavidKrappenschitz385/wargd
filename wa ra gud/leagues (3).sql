@@ -75,6 +75,8 @@ CREATE TABLE `matches` (
   `league_id` int(11) NOT NULL,
   `home_team_id` int(11) NOT NULL,
   `away_team_id` int(11) NOT NULL,
+  `round` int(11) DEFAULT NULL,
+  `match_num` int(11) DEFAULT NULL,
   `venue_id` int(11) DEFAULT NULL,
   `match_date` datetime NOT NULL,
   `home_score` int(11) DEFAULT NULL,
