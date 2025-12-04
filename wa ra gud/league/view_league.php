@@ -66,11 +66,12 @@ if ($current_user['role'] != 'admin') {
 // Get teams with detailed information
 $teams_query = "SELECT t.*, u.first_name, u.last_name, u.username,
                        (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count,
-                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
+                (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count,
+                (t.goals_for - t.goals_against) as score_difference
                 FROM teams t
                 JOIN users u ON t.owner_id = u.id
                 WHERE t.league_id = :league_id
-                ORDER BY t.points DESC, t.score_difference DESC, t.score_for DESC, t.name ASC";
+                ORDER BY t.points DESC, score_difference DESC, t.goals_for DESC, t.name ASC";
 $teams_stmt = $db->prepare($teams_query);
 $teams_stmt->bindParam(':league_id', $league_id);
 $teams_stmt->execute();
