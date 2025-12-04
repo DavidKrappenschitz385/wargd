@@ -27,11 +27,11 @@ test.describe('Team Registration Verification', () => {
       await page.goto('http://localhost:8080/league/view_league.php?id=24');
 
       // 5. Verify the team count is now "1/13"
-      const teamCount = page.locator('text="1/13"');
+      const teamCount = page.locator('div.number:has-text("1/13")');
       await expect(teamCount).toBeVisible();
 
-      // 6. Verify the team "Kalvs Team" is visible in the standings table
-      const teamNameInStandings = page.locator('table.table-striped tbody tr td:has-text("Kalvs Team")');
+      // 6. Verify the team "CEC BLUE DRAGONS" is visible in the standings table
+      const teamNameInStandings = page.locator('table.standings-table tbody tr td:has-text("CEC BLUE DRAGONS")');
       await expect(teamNameInStandings).toBeVisible();
 
       // 7. Capture a screenshot for final verification
