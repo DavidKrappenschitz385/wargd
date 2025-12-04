@@ -16,7 +16,7 @@ $current_user = getCurrentUser();
 // Get comprehensive league details
 $league_query = "SELECT l.*, s.name as sport_name, s.description as sport_description, s.max_players_per_team,
                         u.first_name as creator_first, u.last_name as creator_last, u.username as creator_username,
-                        (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as current_teams
+                        (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as current_teams
                  FROM leagues l
                  JOIN sports s ON l.sport_id = s.id
                  JOIN users u ON l.created_by = u.id

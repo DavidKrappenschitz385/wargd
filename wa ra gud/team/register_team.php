@@ -15,7 +15,7 @@ if (!$league_id) {
 
 // Get league information
 $league_query = "SELECT l.*, s.name as sport_name, s.max_players_per_team,
-                        (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as current_teams,
+                        (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as current_teams,
                         (SELECT COUNT(*) FROM team_registration_requests 
                          WHERE league_id = l.id AND team_owner_id = :user_id 
                          AND status = 'pending') as pending_requests

@@ -17,7 +17,7 @@ if ($league_id) {
     $params[':league_id'] = $league_id;
 }
 
-$requests_query = "SELECT trr.*, l.name as league_name, l.season, l.max_teams, s.name as sport_name, u.id as owner_id, u.username, u.email, u.first_name, u.last_name, u.phone, u.created_at as user_joined, (SELECT COUNT(*) FROM teams WHERE owner_id = u.id) as teams_owned, (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as current_teams FROM team_registration_requests trr JOIN leagues l ON trr.league_id = l.id JOIN sports s ON l.sport_id = s.id JOIN users u ON trr.team_owner_id = u.id $where_clause ORDER BY trr.created_at ASC";
+$requests_query = "SELECT trr.*, l.name as league_name, l.season, l.max_teams, s.name as sport_name, u.id as owner_id, u.username, u.email, u.first_name, u.last_name, u.phone, u.created_at as user_joined, (SELECT COUNT(*) FROM teams WHERE owner_id = u.id) as teams_owned, (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as current_teams FROM team_registration_requests trr JOIN leagues l ON trr.league_id = l.id JOIN sports s ON l.sport_id = s.id JOIN users u ON trr.team_owner_id = u.id $where_clause ORDER BY trr.created_at ASC";
 
 $requests_stmt = $db->prepare($requests_query);
 foreach ($params as $key => $value) {
@@ -38,12 +38,12 @@ if (empty($requests)) {
 foreach ($requests as $request):
     $is_full = $request['current_teams'] >= $request['max_teams'];
 
-$members_query = "SELECT tm.*, u.username, u.email, u.first_name, u.last_name, u.phone 
-                  FROM team_members tm 
-                  JOIN users u ON tm.player_id = u.id 
-                  JOIN teams t ON tm.team_id = t.id 
-                  WHERE t.owner_id = :owner_id 
-                  ORDER BY tm.joined_at DESC 
+$members_query = "SELECT tm.*, u.username, u.email, u.first_name, u.last_name, u.phone
+                  FROM team_members tm
+                  JOIN users u ON tm.player_id = u.id
+                  JOIN teams t ON tm.team_id = t.id
+                  WHERE t.owner_id = :owner_id
+                  ORDER BY tm.joined_at DESC
                   LIMIT 10";
                   ?>
 <div class="approval-request-card">
@@ -51,8 +51,8 @@ $members_query = "SELECT tm.*, u.username, u.email, u.first_name, u.last_name, u
         <div class="request-info">
             <h4><?php echo htmlspecialchars($request['team_name']); ?></h4>
             <div class="request-meta">
-                <strong><?php echo htmlspecialchars($request['league_name']); ?></strong> 
-                (<?php echo htmlspecialchars($request['sport_name']); ?>) • 
+                <strong><?php echo htmlspecialchars($request['league_name']); ?></strong>
+                (<?php echo htmlspecialchars($request['sport_name']); ?>) •
                 <?php echo htmlspecialchars($request['season']); ?>
                 <br>
                 <small>Submitted: <?php echo date('M j, Y g:i A', strtotime($request['created_at'])); ?></small>
