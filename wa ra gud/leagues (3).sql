@@ -1080,3 +1080,29 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `standings`
+--
+
+CREATE TABLE `standings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `league_id` int(11) NOT NULL,
+  `team_id` int(11) NOT NULL,
+  `wins` int(11) DEFAULT 0,
+  `losses` int(11) DEFAULT 0,
+  `draws` int(11) DEFAULT 0,
+  `matches_played` int(11) DEFAULT 0,
+  `points` int(11) DEFAULT 0,
+  `score_for` int(11) DEFAULT 0,
+  `score_against` int(11) DEFAULT 0,
+  `score_difference` int(11) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_league_team` (`league_id`,`team_id`),
+  FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
