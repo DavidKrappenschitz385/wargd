@@ -738,7 +738,7 @@ $can_register = !$user_team && !$pending_request && !$is_full && !$deadline_pass
                     <a href="../match/schedule_matches.php?league_id=<?php echo $league['id']; ?>" class="btn btn-info">
                         Schedule Matches
                     </a>
-                    <a href="generate_round_robin.php?league_id=<?php echo $league['id']; ?>" class="btn btn-success">
+                    <a href="generate_round_robin.php?id=<?php echo $league['id']; ?>" class="btn btn-success">
                         Generate Round Robin
                     </a>
                     <a href="edit_league.php?id=<?php echo $league['id']; ?>" class="btn btn-warning">
