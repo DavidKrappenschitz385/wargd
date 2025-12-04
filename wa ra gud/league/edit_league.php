@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_league'])) {
     }
     
     // Check if reducing max_teams would affect existing teams
-    $team_count_query = "SELECT COUNT(*) as count FROM teams WHERE league_id = :league_id";
+    $team_count_query = "SELECT COUNT(*) as count FROM team_registration_requests WHERE league_id = :league_id AND status = 'approved'";
     $team_count_stmt = $db->prepare($team_count_query);
     $team_count_stmt->bindParam(':league_id', $league_id);
     $team_count_stmt->execute();
@@ -128,7 +128,7 @@ $sports = $sports_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get league statistics
 $stats_query = "SELECT 
-                (SELECT COUNT(*) FROM teams WHERE league_id = :league_id) as team_count,
+                (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = :league_id AND status = 'approved') as team_count,
                 (SELECT COUNT(*) FROM matches WHERE league_id = :league_id) as total_matches,
                 (SELECT COUNT(*) FROM matches WHERE league_id = :league_id AND status = 'completed') as completed_matches,
                 (SELECT COUNT(*) FROM registration_requests WHERE league_id = :league_id AND status = 'pending') as pending_requests";

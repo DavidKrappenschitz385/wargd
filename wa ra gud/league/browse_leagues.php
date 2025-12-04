@@ -114,7 +114,7 @@ switch ($sort) {
 // Get leagues with comprehensive information
 $leagues_query = "SELECT l.*, s.name as sport_name, s.description as sport_description, s.max_players_per_team,
                          u.first_name as creator_first_name, u.last_name as creator_last_name,
-                         (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as team_count,
+                         (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as team_count,
                          (SELECT COUNT(*) FROM matches WHERE league_id = l.id) as total_matches,
                          (SELECT COUNT(*) FROM matches WHERE league_id = l.id AND status = 'completed') as completed_matches,
                          (SELECT COUNT(*) FROM registration_requests WHERE league_id = l.id AND status = 'pending') as pending_requests
@@ -151,7 +151,7 @@ $sports = $sports_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get featured/recommended leagues
 $featured_query = "SELECT l.*, s.name as sport_name,
-                          (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as team_count
+                          (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as team_count
                    FROM leagues l 
                    JOIN sports s ON l.sport_id = s.id 
                    WHERE l.status = 'open' 
