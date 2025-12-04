@@ -63,19 +63,27 @@ if ($current_user['role'] != 'admin') {
     $user_teams_in_league = $user_teams_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Get teams with detailed information from the standings table
+// Get all teams for this league and join their standings data if available
 $teams_query = "SELECT
-                    s.*,
+                    t.id,
                     t.name as team_name,
                     t.description as team_description,
                     u.first_name,
                     u.last_name,
-                    (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
-                FROM standings s
-                JOIN teams t ON s.team_id = t.id
+                    (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count,
+                    COALESCE(s.matches_played, 0) as matches_played,
+                    COALESCE(s.wins, 0) as wins,
+                    COALESCE(s.draws, 0) as draws,
+                    COALESCE(s.losses, 0) as losses,
+                    COALESCE(s.score_for, 0) as score_for,
+                    COALESCE(s.score_against, 0) as score_against,
+                    COALESCE(s.score_difference, 0) as score_difference,
+                    COALESCE(s.points, 0) as points
+                FROM teams t
                 JOIN users u ON t.owner_id = u.id
-                WHERE s.league_id = :league_id
-                ORDER BY s.points DESC, s.score_difference DESC, s.score_for DESC, t.name ASC";
+                LEFT JOIN standings s ON t.id = s.team_id AND s.league_id = t.league_id
+                WHERE t.league_id = :league_id
+                ORDER BY points DESC, score_difference DESC, score_for DESC, t.name ASC";
 $teams_stmt = $db->prepare($teams_query);
 $teams_stmt->bindParam(':league_id', $league_id);
 $teams_stmt->execute();

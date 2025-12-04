@@ -4,13 +4,13 @@
 class Database {
     private $host = 'localhost';
     private $db_name = 'leagues';
-    private $username = 'root';
-    private $password = '';
+    private $username = 'league_user';
+    private $password = 'league_password';
     private $conn;
 
     public function connect() {
         $this->conn = null;
-        
+
         try {
             $this->conn = new PDO(
                 'mysql:host=' . $this->host . ';dbname=' . $this->db_name,
@@ -22,7 +22,7 @@ class Database {
         } catch(PDOException $e) {
             echo 'Connection Error: ' . $e->getMessage();
         }
-        
+
         return $this->conn;
     }
 }
@@ -40,15 +40,15 @@ function isLoggedIn() {
 
 function getCurrentUser() {
     if (!isLoggedIn()) return null;
-    
+
     $database = new Database();
     $db = $database->connect();
-    
+
     $query = "SELECT * FROM users WHERE id = :id";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $_SESSION['user_id']);
     $stmt->execute();
-    
+
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
