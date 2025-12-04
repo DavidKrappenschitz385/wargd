@@ -45,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_league'])) {
     $max_teams = $_POST['max_teams'];
     $rules = trim($_POST['rules']);
     $status = $_POST['status'];
+    $win_points = $_POST['win_points'];
+    $draw_points = $_POST['draw_points'];
+    $loss_points = $_POST['loss_points'];
     
     // Validation
     $errors = [];
@@ -87,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_league'])) {
                             max_teams = :max_teams, 
                             rules = :rules,
                             status = :status,
+                            win_points = :win_points,
+                            draw_points = :draw_points,
+                            loss_points = :loss_points,
                             updated_at = NOW()
                         WHERE id = :id";
         
@@ -100,6 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_league'])) {
         $update_stmt->bindParam(':max_teams', $max_teams);
         $update_stmt->bindParam(':rules', $rules);
         $update_stmt->bindParam(':status', $status);
+        $update_stmt->bindParam(':win_points', $win_points);
+        $update_stmt->bindParam(':draw_points', $draw_points);
+        $update_stmt->bindParam(':loss_points', $loss_points);
         $update_stmt->bindParam(':id', $league_id);
         
         if ($update_stmt->execute()) {
@@ -702,6 +711,28 @@ $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
                             <textarea name="rules" class="form-control" 
                                       placeholder="Enter the rules, regulations, and guidelines for this league..."><?php echo htmlspecialchars($league['rules'] ?? ''); ?></textarea>
                             <div class="help-text">Define the rules that teams and players must follow</div>
+                        </div>
+                    </div>
+
+                    <!-- Points Section -->
+                    <div class="form-section">
+                        <h3 class="section-title">Point System</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Points for a Win <span class="required">*</span></label>
+                                <input type="number" name="win_points" class="form-control"
+                                       value="<?php echo htmlspecialchars($league['win_points'] ?? 1); ?>" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Points for a Draw <span class="required">*</span></label>
+                                <input type="number" name="draw_points" class="form-control"
+                                       value="<?php echo htmlspecialchars($league['draw_points'] ?? 0); ?>" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Points for a Loss <span class="required">*</span></label>
+                                <input type="number" name="loss_points" class="form-control"
+                                       value="<?php echo htmlspecialchars($league['loss_points'] ?? 0); ?>" min="0" required>
+                            </div>
                         </div>
                     </div>
                     

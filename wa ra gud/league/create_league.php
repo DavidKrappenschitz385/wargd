@@ -15,10 +15,13 @@ if ($_POST) {
     $registration_deadline = $_POST['registration_deadline'];
     $max_teams = $_POST['max_teams'];
     $rules = trim($_POST['rules']);
+    $win_points = $_POST['win_points'];
+    $draw_points = $_POST['draw_points'];
+    $loss_points = $_POST['loss_points'];
     $created_by = $_SESSION['user_id'];
     
-    $query = "INSERT INTO leagues (name, sport_id, season, start_date, end_date, registration_deadline, max_teams, rules, created_by) 
-              VALUES (:name, :sport_id, :season, :start_date, :end_date, :registration_deadline, :max_teams, :rules, :created_by)";
+    $query = "INSERT INTO leagues (name, sport_id, season, start_date, end_date, registration_deadline, max_teams, rules, created_by, win_points, draw_points, loss_points)
+              VALUES (:name, :sport_id, :season, :start_date, :end_date, :registration_deadline, :max_teams, :rules, :created_by, :win_points, :draw_points, :loss_points)";
     
     $stmt = $db->prepare($query);
     $stmt->bindParam(':name', $name);
@@ -30,6 +33,9 @@ if ($_POST) {
     $stmt->bindParam(':max_teams', $max_teams);
     $stmt->bindParam(':rules', $rules);
     $stmt->bindParam(':created_by', $created_by);
+    $stmt->bindParam(':win_points', $win_points);
+    $stmt->bindParam(':draw_points', $draw_points);
+    $stmt->bindParam(':loss_points', $loss_points);
     
     if ($stmt->execute()) {
         showMessage("League created successfully!", "success");
@@ -115,6 +121,21 @@ $sports = $sports_stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="form-group">
                 <label>League Rules:</label>
                 <textarea name="rules" placeholder="Enter league rules and regulations..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Points for a Win:</label>
+                <input type="number" name="win_points" value="1" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>Points for a Draw:</label>
+                <input type="number" name="draw_points" value="0" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>Points for a Loss:</label>
+                <input type="number" name="loss_points" value="0" min="0">
             </div>
             
             <button type="submit" class="btn">Create League</button>

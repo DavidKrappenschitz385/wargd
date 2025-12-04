@@ -20,8 +20,7 @@ function generateRoundRobin($teams) {
 
             if ($home_team['id'] !== null && $away_team['id'] !== null) {
                 $matches[] = [
-                    'round' => $round + 1,
-                    'match_num' => $match_num + 1,
+                    'round_number' => $round + 1,
                     'teamA' => $home_team,
                     'teamB' => $away_team,
                 ];
@@ -87,8 +86,8 @@ $generated_matches = generateRoundRobin($teams);
 try {
     $db->beginTransaction();
 
-    $insert_query = "INSERT INTO matches (league_id, home_team_id, away_team_id, round, match_num, match_date, status)
-                     VALUES (:league_id, :home_team_id, :away_team_id, :round, :match_num, :match_date, 'scheduled')";
+    $insert_query = "INSERT INTO matches (league_id, home_team_id, away_team_id, round_number, match_date, status)
+                     VALUES (:league_id, :home_team_id, :away_team_id, :round_number, :match_date, 'scheduled')";
     $insert_stmt = $db->prepare($insert_query);
 
     // Stagger match times, e.g., starting today, 2 matches per day
@@ -103,8 +102,7 @@ try {
         $insert_stmt->bindParam(':league_id', $league_id);
         $insert_stmt->bindParam(':home_team_id', $home_team_id);
         $insert_stmt->bindParam(':away_team_id', $away_team_id);
-        $insert_stmt->bindParam(':round', $match['round']);
-        $insert_stmt->bindParam(':match_num', $match['match_num']);
+        $insert_stmt->bindParam(':round_number', $match['round_number']);
         $insert_stmt->bindParam(':match_date', $match_date->format('Y-m-d H:i:s'));
         $insert_stmt->execute();
 

@@ -240,24 +240,62 @@ if (isset($_GET['id']) && !isset($_POST['create_schedule'])) {
         $update_stmt->bindParam(':id', $match_id);
         
         if ($update_stmt->execute()) {
-            // Update team standings
-            $match_query = "SELECT * FROM matches WHERE id = :id";
-            $match_stmt = $db->prepare($match_query);
+            // Get match and league details for standings update
+            $query = "SELECT m.*, l.win_points, l.draw_points, l.loss_points
+                      FROM matches m
+                      JOIN leagues l ON m.league_id = l.id
+                      WHERE m.id = :id";
+            $match_stmt = $db->prepare($query);
             $match_stmt->bindParam(':id', $match_id);
             $match_stmt->execute();
             $match = $match_stmt->fetch(PDO::FETCH_ASSOC);
             
+            // Prepare the statement for updating team stats
+            $update_team_stmt = $db->prepare(
+                "UPDATE teams SET
+                    matches_played = matches_played + 1,
+                    wins = wins + :wins,
+                    losses = losses + :losses,
+                    draws = draws + :draws,
+                    points = points + :points,
+                    score_for = score_for + :score_for,
+                    score_against = score_against + :score_against
+                WHERE id = :team_id"
+            );
+
+            // Determine match outcome
             if ($home_score > $away_score) {
                 // Home team wins
-                $db->exec("UPDATE teams SET wins = wins + 1, points = points + 3 WHERE id = " . $match['home_team_id']);
-                $db->exec("UPDATE teams SET losses = losses + 1 WHERE id = " . $match['away_team_id']);
+                $update_team_stmt->execute([
+                    ':wins' => 1, ':losses' => 0, ':draws' => 0, ':points' => $match['win_points'],
+                    ':score_for' => $home_score, ':score_against' => $away_score, ':team_id' => $match['home_team_id']
+                ]);
+                // Away team loses
+                $update_team_stmt->execute([
+                    ':wins' => 0, ':losses' => 1, ':draws' => 0, ':points' => $match['loss_points'],
+                    ':score_for' => $away_score, ':score_against' => $home_score, ':team_id' => $match['away_team_id']
+                ]);
             } elseif ($away_score > $home_score) {
                 // Away team wins
-                $db->exec("UPDATE teams SET wins = wins + 1, points = points + 3 WHERE id = " . $match['away_team_id']);
-                $db->exec("UPDATE teams SET losses = losses + 1 WHERE id = " . $match['home_team_id']);
+                $update_team_stmt->execute([
+                    ':wins' => 1, ':losses' => 0, ':draws' => 0, ':points' => $match['win_points'],
+                    ':score_for' => $away_score, ':score_against' => $home_score, ':team_id' => $match['away_team_id']
+                ]);
+                // Home team loses
+                $update_team_stmt->execute([
+                    ':wins' => 0, ':losses' => 1, ':draws' => 0, ':points' => $match['loss_points'],
+                    ':score_for' => $home_score, ':score_against' => $away_score, ':team_id' => $match['home_team_id']
+                ]);
             } else {
                 // Draw
-                $db->exec("UPDATE teams SET draws = draws + 1, points = points + 1 WHERE id IN (" . $match['home_team_id'] . ", " . $match['away_team_id'] . ")");
+                $update_team_stmt->execute([
+                    ':wins' => 0, ':losses' => 0, ':draws' => 1, ':points' => $match['draw_points'],
+                    ':score_for' => $home_score, ':score_against' => $away_score, ':team_id' => $match['home_team_id']
+                ]);
+                $update_team_stmt->execute([
+                    ':wins' => 0, ':losses' => 0, ':draws' => 1, ':points' => $match['draw_points'],
+                    ':score_for' => $away_score, ':score_against' => $home_score, ':team_id' => $match['away_team_id']
+                ]);
             }
             
             showMessage("Match result recorded successfully!", "success");
