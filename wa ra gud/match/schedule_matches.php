@@ -64,6 +64,10 @@ if ($_POST && isset($_POST['create_schedule'])) {
                 
                 $insert_query = "INSERT INTO matches (league_id, home_team_id, away_team_id, venue_id, match_date) 
                                 VALUES (:league_id, :home_team_id, :away_team_id, :venue_id, :match_date)";
+                $insert_stmt = $db->prepare($insert_query);
+                $insert_stmt->bindParam(':league_id', $league_id);
+                $insert_stmt->bindParam(':home_team_id', $home_team['id']);
+                $insert_stmt->bindParam(':away_team_id', $away_team['id']);
                 $insert_stmt->bindParam(':venue_id', $venue['id']);
                 $insert_stmt->bindParam(':match_date', $match_date->format('Y-m-d H:i:s'));
                 $insert_stmt->execute();
