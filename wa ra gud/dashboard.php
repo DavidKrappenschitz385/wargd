@@ -10,7 +10,7 @@ $user = getCurrentUser();
 // Get user-specific data based on role
 if ($user['role'] == 'admin') {
     // Admin dashboard data
-    $stats_query = "SELECT 
+    $stats_query = "SELECT
                         (SELECT COUNT(*) FROM users) as total_users,
                         (SELECT COUNT(*) FROM leagues) as total_leagues,
                         (SELECT COUNT(*) FROM teams) as total_teams,
@@ -18,29 +18,29 @@ if ($user['role'] == 'admin') {
     $stats_stmt = $db->prepare($stats_query);
     $stats_stmt->execute();
     $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     // Recent activity
-    $activity_query = "SELECT 'user' as type, CONCAT(first_name, ' ', last_name, ' registered') as activity, created_at 
-                       FROM users 
+    $activity_query = "SELECT 'user' as type, CONCAT(first_name, ' ', last_name, ' registered') as activity, created_at
+                       FROM users
                        UNION ALL
-                       SELECT 'team' as type, CONCAT(name, ' team created') as activity, created_at 
+                       SELECT 'team' as type, CONCAT(name, ' team created') as activity, created_at
                        FROM teams
                        UNION ALL
-                       SELECT 'league' as type, CONCAT(name, ' league created') as activity, created_at 
+                       SELECT 'league' as type, CONCAT(name, ' league created') as activity, created_at
                        FROM leagues
                        ORDER BY created_at DESC LIMIT 10";
     $activity_stmt = $db->prepare($activity_query);
     $activity_stmt->execute();
     $activities = $activity_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
 } else {
     // Player/Team Owner dashboard
-    
+
     // Get user's teams
-    $teams_query = "SELECT t.*, l.name as league_name, l.season, 
+    $teams_query = "SELECT t.*, l.name as league_name, l.season,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
-                    FROM teams t 
-                    JOIN leagues l ON t.league_id = l.id 
+                    FROM teams t
+                    JOIN leagues l ON t.league_id = l.id
                     WHERE t.owner_id = :user_id OR t.id IN (
                         SELECT team_id FROM team_members WHERE player_id = :user_id AND status = 'active'
                     )";
@@ -48,7 +48,7 @@ if ($user['role'] == 'admin') {
     $teams_stmt->bindParam(':user_id', $user['id']);
     $teams_stmt->execute();
     $user_teams = $teams_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Get upcoming matches for user's teams
     $team_ids = array_column($user_teams, 'id');
     if (!empty($team_ids)) {
@@ -70,7 +70,7 @@ if ($user['role'] == 'admin') {
     } else {
         $upcoming_matches = [];
     }
-    
+
     // Get recent match results
     if (!empty($team_ids)) {
         $recent_query = "SELECT m.*, ht.name as home_team, at.name as away_team, v.name as venue_name, l.name as league_name
@@ -89,13 +89,12 @@ if ($user['role'] == 'admin') {
     } else {
         $recent_matches = [];
     }
-    
+
     // Get available leagues for joining
-    $available_leagues_query = "SELECT l.*, s.name as sport_name,
+    $available_leagues_query = "SELECT l.*, s.name as sport_,
                                        (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as team_count
-                                FROM leagues l 
-                                JOIN sports s ON l.sport_id = s.id 
-                                WHERE l.status IN ('open', 'draft') 
+                                FROM leagues l
+                                JOIN sports s ON l.sport_id = s.id
                                 AND l.registration_deadline >= CURDATE()
                                 ORDER BY l.registration_deadline ASC";
     $available_stmt = $db->prepare($available_leagues_query);
@@ -112,17 +111,17 @@ if ($user['role'] == 'admin') {
     <title>Dashboard - Sports League</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background-image: url('bgsport.png'); 
-             background-size: cover; 
+        body { font-family: Arial, sans-serif; background-image: url('bgsport.png');
+             background-size: cover;
              background-repeat: no-repeat;
   background-position: center;
   background-attachment: fixed;
-           
+
              }
         .header { background: linear-gradient(black, maroon); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .nav { display: flex; gap: 2rem; }
         .nav a { color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px; }
-        .nav a:hover { background: maroon;  transition: background-color 0.7s ease;  }
+        .nav a:hover { background: maroon;  transition: background-color: 0.7s ease;  }
         .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
         .card { background-image: url('woods.jpg'); border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -165,15 +164,15 @@ if ($user['role'] == 'admin') {
             <a href="auth/logout.php">Logout</a>
         </div>
     </div>
-    
+
     <div class="container">
         <?php displayMessage(); ?>
-        
+
         <div class="welcome">
             <h2>👥 Welcome back, <?php echo htmlspecialchars($user['first_name']); ?>!</h2>
             <p>Role: <?php echo ucfirst($user['role']); ?> | Last login: <?php echo date('M j, Y g:i A'); ?></p>
         </div>
-        
+
         <?php if ($user['role'] == 'admin'): ?>
         <!-- Admin Dashboard -->
         <div class="stats-grid">
@@ -194,7 +193,7 @@ if ($user['role'] == 'admin') {
                 <div class="stat-label">Scheduled Matches</div>
             </div>
         </div>
-        
+
         <div class="dashboard-grid">
             <div class="card">
                 <h3>Quick Actions</h3>
@@ -203,7 +202,7 @@ if ($user['role'] == 'admin') {
                 <a href="venue/manage_venues.php" class="btn">Manage Venues</a>
                 <a href="admin/system_reports.php" class="btn btn-warning">View Reports</a>
             </div>
-            
+
             <div class="card">
                 <h3>Recent System Activity</h3>
                 <?php foreach ($activities as $activity): ?>
@@ -214,18 +213,18 @@ if ($user['role'] == 'admin') {
                 <?php endforeach; ?>
             </div>
         </div>
-        
+
         <?php else: ?>
         <!-- Player/Team Owner Dashboard -->
-        
+
         <?php if (count($user_teams) == 0): ?>
         <div class="alert alert-info">
-            <strong>Get Started!</strong> You're not part of any teams yet. 
-            <a href="team/create_team.php">Create a team</a> or 
+            <strong>Get Started!</strong> You're not part of any teams yet.
+            <a href="team/create_team.php">Create a team</a> or
             <a href="team/join_team.php">request to join an existing team</a>.
         </div>
         <?php endif; ?>
-        
+
         <div class="dashboard-grid">
             <div class="card">
                 <h3>My Teams (<?php echo count($user_teams); ?>)</h3>
@@ -266,7 +265,7 @@ if ($user['role'] == 'admin') {
                     <p>No leagues currently accepting registrations.</p>
                 <?php endif; ?>
             </div>
-            
+
             <div class="card">
                 <h3>Upcoming Matches</h3>
                 <?php if (count($upcoming_matches) > 0): ?>
@@ -281,7 +280,7 @@ if ($user['role'] == 'admin') {
                     <p>No upcoming matches.</p>
                 <?php endif; ?>
             </div>
-            
+
             <div class="card">
                 <h3>Recent Results</h3>
                 <?php if (count($recent_matches) > 0): ?>
@@ -296,8 +295,8 @@ if ($user['role'] == 'admin') {
                     <p>No recent matches.</p>
                 <?php endif; ?>
             </div>
-            
-            
+
+
         </div>
         <?php endif; ?>
     </div>
@@ -309,25 +308,25 @@ if ($user['role'] == 'admin') {
 if (!isset($user_teams)) {
     require_once 'config/database.php';
     requireLogin();
-    
+
     $database = new Database();
     $db = $database->connect();
     $user = getCurrentUser();
-    
+
     // Handle join request submission
     if ($_POST) {
         $team_id = $_POST['team_id'];
         $preferred_position = trim($_POST['preferred_position']);
         $message = trim($_POST['message']);
-        
+
         // Check if user already has a pending request for this team
-        $check_query = "SELECT id FROM registration_requests 
+        $check_query = "SELECT id FROM registration_requests
                         WHERE player_id = :player_id AND team_id = :team_id AND status = 'pending'";
         $check_stmt = $db->prepare($check_query);
         $check_stmt->bindParam(':player_id', $user['id']);
         $check_stmt->bindParam(':team_id', $team_id);
         $check_stmt->execute();
-        
+
         if ($check_stmt->rowCount() > 0) {
             $error = "You already have a pending request for this team!";
         } else {
@@ -337,8 +336,8 @@ if (!isset($user_teams)) {
             $team_stmt->bindParam(':team_id', $team_id);
             $team_stmt->execute();
             $team = $team_stmt->fetch(PDO::FETCH_ASSOC);
-            
-            $insert_query = "INSERT INTO registration_requests (player_id, team_id, league_id, preferred_position, message) 
+
+            $insert_query = "INSERT INTO registration_requests (player_id, team_id, league_id, preferred_position, message)
                             VALUES (:player_id, :team_id, :league_id, :preferred_position, :message)";
             $insert_stmt = $db->prepare($insert_query);
             $insert_stmt->bindParam(':player_id', $user['id']);
@@ -346,7 +345,7 @@ if (!isset($user_teams)) {
             $insert_stmt->bindParam(':league_id', $team['league_id']);
             $insert_stmt->bindParam(':preferred_position', $preferred_position);
             $insert_stmt->bindParam(':message', $message);
-            
+
             if ($insert_stmt->execute()) {
                 showMessage("Join request sent successfully!", "success");
                 redirect('dashboard.php');
@@ -355,7 +354,7 @@ if (!isset($user_teams)) {
             }
         }
     }
-    
+
     // Get available teams to join
     $teams_query = "SELECT t.*, l.name as league_name, l.season, s.name as sport_name, u.username as owner_username,
                            (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
@@ -399,11 +398,11 @@ if (!isset($user_teams)) {
             document.getElementById('team_name_display').textContent = teamName;
             document.getElementById('joinModal').style.display = 'block';
         }
-        
+
         function closeModal() {
             document.getElementById('joinModal').style.display = 'none';
         }
-        
+
         window.onclick = function(event) {
             var modal = document.getElementById('joinModal');
             if (event.target == modal) {
@@ -415,10 +414,10 @@ if (!isset($user_teams)) {
 <body>
     <div class="container">
         <h2>Join a Team</h2>
-        
+
         <?php displayMessage(); ?>
         <?php if (isset($error)) echo "<div class='error'>$error</div>"; ?>
-        
+
         <?php if (count($available_teams) > 0): ?>
             <?php foreach ($available_teams as $team): ?>
                 <div class="team-card">
@@ -444,29 +443,29 @@ if (!isset($user_teams)) {
                 <p><a href="team/create_team.php" class="btn">Create Your Own Team</a></p>
             </div>
         <?php endif; ?>
-        
+
         <p><a href="dashboard.php">← Back to Dashboard</a></p>
     </div>
-    
+
     <!-- Join Team Modal -->
     <div id="joinModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
             <h3>Request to Join <span id="team_name_display"></span></h3>
-            
+
             <form method="POST">
                 <input type="hidden" id="join_team_id" name="team_id">
-                
+
                 <div class="form-group">
                     <label>Preferred Position:</label>
                     <input type="text" name="preferred_position" placeholder="e.g., Forward, Defender, Midfielder">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Message to Team Owner:</label>
                     <textarea name="message" rows="4" placeholder="Tell them why you'd like to join their team..."></textarea>
                 </div>
-                
+
                 <button type="submit" class="btn btn-success">Send Request</button>
                 <button type="button" onclick="closeModal()" class="btn" style="background: #6c757d;">Cancel</button>
             </form>
@@ -484,14 +483,14 @@ if (!isset($user_teams)) {
 if (isset($_POST['request_id'])) {
     require_once 'database.php';
     requireLogin();
-    
+
     $database = new Database();
     $db = $database->connect();
     $user = getCurrentUser();
-    
+
     $request_id = $_POST['request_id'];
     $action = $_POST['action']; // 'approve' or 'reject'
-    
+
     // Get request details and verify ownership
     $request_query = "SELECT rr.*, t.owner_id, t.name as team_name, u.first_name, u.last_name
                       FROM registration_requests rr
@@ -502,39 +501,39 @@ if (isset($_POST['request_id'])) {
     $request_stmt->bindParam(':id', $request_id);
     $request_stmt->execute();
     $request = $request_stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$request) {
         showMessage("Request not found!", "error");
         redirect('../dashboard.php');
     }
-    
+
     // Check if user is team owner or admin
     if ($request['owner_id'] != $user['id'] && $user['role'] != 'admin') {
         showMessage("Access denied!", "error");
         redirect('../dashboard.php');
     }
-    
+
     if ($action == 'approve') {
         // Add player to team
-        $add_member_query = "INSERT INTO team_members (team_id, player_id, position, joined_at) 
+        $add_member_query = "INSERT INTO team_members (team_id, player_id, position, joined_at)
                             VALUES (:team_id, :player_id, :position, NOW())";
         $add_member_stmt = $db->prepare($add_member_query);
         $add_member_stmt->bindParam(':team_id', $request['team_id']);
         $add_member_stmt->bindParam(':player_id', $request['player_id']);
         $add_member_stmt->bindParam(':position', $request['preferred_position']);
-        
+
         if ($add_member_stmt->execute()) {
             // Update request status
-            $update_query = "UPDATE registration_requests 
-                            SET status = 'approved', processed_at = NOW(), processed_by = :processed_by 
+            $update_query = "UPDATE registration_requests
+                            SET status = 'approved', processed_at = NOW(), processed_by = :processed_by
                             WHERE id = :id";
             $update_stmt = $db->prepare($update_query);
             $update_stmt->bindParam(':processed_by', $user['id']);
             $update_stmt->bindParam(':id', $request_id);
             $update_stmt->execute();
-            
+
             // Create notification for player
-            $notification_query = "INSERT INTO notifications (user_id, title, message, type) 
+            $notification_query = "INSERT INTO notifications (user_id, title, message, type)
                                   VALUES (:user_id, :title, :message, 'success')";
             $notification_stmt = $db->prepare($notification_query);
             $notification_stmt->bindParam(':user_id', $request['player_id']);
@@ -543,23 +542,23 @@ if (isset($_POST['request_id'])) {
             $notification_stmt->bindParam(':title', $title);
             $notification_stmt->bindParam(':message', $message);
             $notification_stmt->execute();
-            
+
             showMessage("Player " . $request['first_name'] . " " . $request['last_name'] . " has been added to the team!", "success");
         } else {
             showMessage("Failed to add player to team!", "error");
         }
     } else { // reject
         // Update request status
-        $update_query = "UPDATE registration_requests 
-                        SET status = 'rejected', processed_at = NOW(), processed_by = :processed_by 
+        $update_query = "UPDATE registration_requests
+                        SET status = 'rejected', processed_at = NOW(), processed_by = :processed_by
                         WHERE id = :id";
         $update_stmt = $db->prepare($update_query);
         $update_stmt->bindParam(':processed_by', $user['id']);
         $update_stmt->bindParam(':id', $request_id);
         $update_stmt->execute();
-        
+
         // Create notification for player
-        $notification_query = "INSERT INTO notifications (user_id, title, message, type) 
+        $notification_query = "INSERT INTO notifications (user_id, title, message, type)
                               VALUES (:user_id, :title, :message, 'info')";
         $notification_stmt = $db->prepare($notification_query);
         $notification_stmt->bindParam(':user_id', $request['player_id']);
