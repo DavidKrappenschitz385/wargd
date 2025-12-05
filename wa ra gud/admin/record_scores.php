@@ -9,19 +9,17 @@ $message = ''; // For feedback
 $error = '';   // For errors
 
 // --- FORM SUBMISSION LOGIC ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['match_id'], $_POST['home_score'], $_POST['away_score'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['match_id'], $_POST['home_score'], $_POST['away_score'], $_POST['match_type'])) {
     $matchId = (int)$_POST['match_id'];
     $homeScore = (int)$_POST['home_score'];
     $awayScore = (int)$_POST['away_score'];
+    $matchType = $_POST['match_type'];
 
     if (empty($matchId) || !isset($_POST['home_score']) || !isset($_POST['away_score'])) {
         $error = "Please fill in all fields.";
     } else {
-        // Define the points system (e.g., 3 for a win, 1 for a draw, 0 for a loss)
         $pointsConfig = ['win' => 3, 'draw' => 1, 'loss' => 0];
-
-        // Call the function to record the result and update standings
-        $success = recordMatchResult($pdo, $matchId, $homeScore, $awayScore, $pointsConfig);
+        $success = recordMatchResult($pdo, $matchId, $homeScore, $awayScore, $pointsConfig, $matchType);
 
         if ($success) {
             $message = "Match result recorded successfully! Standings have been updated. 🔥";
@@ -36,40 +34,45 @@ try {
     $leaguesStmt = $pdo->query("SELECT id, name FROM leagues ORDER BY name");
     $leagues = $leaguesStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // Handle this gracefully
     $leagues = [];
     $error = "Could not fetch leagues.";
 }
 
-
 // --- FILTERING LOGIC ---
 $selectedLeagueId = $_GET['league_id'] ?? null;
-$whereClause = "WHERE m.status = 'scheduled'";
-$params = [];
+$matchTypeFilter = $_GET['match_type'] ?? 'regular';
 
-if ($selectedLeagueId) {
-    $whereClause .= " AND m.league_id = ?";
-    $params[] = $selectedLeagueId;
-}
-
-
-// Get all scheduled matches to populate the table, with optional filtering
-try {
+if ($matchTypeFilter === 'regular') {
+    $whereClause = "WHERE m.status = 'scheduled'";
+    $params = [];
+    if ($selectedLeagueId) {
+        $whereClause .= " AND m.league_id = ?";
+        $params[] = $selectedLeagueId;
+    }
     $sql = "
-        SELECT
-            m.id,
-            ht.name AS home_team,
-            at.name AS away_team,
-            l.name AS league_name,
-            m.round_number,
-            m.match_date
+        SELECT m.id, ht.name AS home_team, at.name AS away_team, l.name AS league_name, m.round_number, m.match_date, 'regular' as match_type
         FROM matches m
         JOIN teams ht ON m.home_team_id = ht.id
         JOIN teams at ON m.away_team_id = at.id
         JOIN leagues l ON m.league_id = l.id
-        $whereClause
-        ORDER BY l.name, m.round_number
-    ";
+        $whereClause ORDER BY l.name, m.round_number";
+} else {
+    $whereClause = "WHERE pm.status = 'scheduled'";
+    $params = [];
+    if ($selectedLeagueId) {
+        $whereClause .= " AND pm.league_id = ?";
+        $params[] = $selectedLeagueId;
+    }
+    $sql = "
+        SELECT pm.id, t1.name AS home_team, t2.name AS away_team, l.name AS league_name, pm.round as round_number, null as match_date, 'playoff' as match_type
+        FROM playoff_matches pm
+        JOIN teams t1 ON pm.team1_id = t1.id
+        JOIN teams t2 ON pm.team2_id = t2.id
+        JOIN leagues l ON pm.league_id = l.id
+        $whereClause ORDER BY l.name, pm.round";
+}
+
+try {
     $matchesStmt = $pdo->prepare($sql);
     $matchesStmt->execute($params);
     $matches = $matchesStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -93,7 +96,6 @@ try {
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
-        <!-- League Filter Form -->
         <form action="record_scores.php" method="get" class="mb-3">
             <div class="form-row align-items-end">
                 <div class="col">
@@ -105,6 +107,13 @@ try {
                                 <?= htmlspecialchars($league['name']) ?>
                             </option>
                         <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col">
+                    <label for="match_type">Match Type</label>
+                    <select name="match_type" id="match_type" class="form-control">
+                        <option value="regular" <?= ($matchTypeFilter === 'regular') ? 'selected' : '' ?>>Regular Season</option>
+                        <option value="playoff" <?= ($matchTypeFilter === 'playoff') ? 'selected' : '' ?>>Playoffs</option>
                     </select>
                 </div>
                 <div class="col-auto">
@@ -133,8 +142,9 @@ try {
                         <td><?= htmlspecialchars($match['home_team']) ?></td>
                         <td><?= htmlspecialchars($match['away_team']) ?></td>
                         <td><?= htmlspecialchars($match['match_date']) ?></td>
-                        <form action="record_scores.php" method="post">
+                        <form action="record_scores.php?league_id=<?= $selectedLeagueId ?>&match_type=<?= $matchTypeFilter ?>" method="post">
                             <input type="hidden" name="match_id" value="<?= $match['id'] ?>">
+                            <input type="hidden" name="match_type" value="<?= $match['match_type'] ?>">
                             <td>
                                 <div class="form-row">
                                     <div class="col">

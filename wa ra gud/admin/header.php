@@ -24,6 +24,9 @@ $user = getCurrentUser();
         .nav a { color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px; }
          .nav a:hover { background: red;  transition: background-color 0.7s ease;  }
         .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+        .dropdown-menu { background-color: #343a40; }
+        .dropdown-item { color: white; }
+        .dropdown-item:hover { background-color: #495057; }
     </style>
 </head>
 <body>
@@ -33,9 +36,21 @@ $user = getCurrentUser();
             <a href="dashboard.php">Dashboard</a>
             <a href="manage_leagues.php">Manage Leagues</a>
             <a href="manage_users.php">Manage Users</a>
+            <div class="dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Matches
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                    <a class="dropdown-item" href="generate_matches.php">Generate Round Robin</a>
+                    <a class="dropdown-item" href="generate_playoffs.php">Generate Playoffs</a>
+                </div>
+            </div>
             <a href="system_reports.php">Reports</a>
             <a href="../profile.php">Profile</a>
             <a href="../auth/logout.php">Logout</a>
         </div>
     </div>
     <div class="container">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
