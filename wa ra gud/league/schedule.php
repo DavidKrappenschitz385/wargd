@@ -1,72 +1,98 @@
 <?php
-// schedule.php - Round Robin Match Generation
+// wa ra gud/league/schedule.php
 
 /**
- * Generates a round robin schedule for a given list of teams.
+ * Generates a round-robin tournament schedule using the Circle Method algorithm.
  *
- * This function uses the "circle method" algorithm to create a schedule
- * where every team plays every other team exactly once. It handles both
- * even and odd numbers of teams by adding a "bye" if necessary.
+ * This function is the core of the automatic scheduling system. It takes a list
+ * of team IDs and creates a fair, balanced schedule where every team plays every
+ * other team exactly once. It's designed to handle both even and odd numbers of
+ * teams gracefully by automatically adding a "bye" round if needed.
  *
- * @param array $teams An array of team IDs.
+ * --- HOW IT WORKS (THE CIRCLE METHOD) ---
+ *
+ * 1.  **Handle Odd Teams:** If there's an odd number of teams, a dummy team (a "bye")
+ *     is added. This ensures the algorithm works with an even set.
+ *
+ * 2.  **Pin One Team:** One team is "pinned" to the top position and never moves.
+ *     This anchors the entire schedule.
+ *
+ * 3.  **Rotate Everyone Else:** In each round, all other teams rotate one position
+ *     clockwise around the pinned team.
+ *
+ * 4.  **Pair Up:** In every round, teams are paired vertically. The team at the top
+ *     of a column plays the team at the bottom.
+ *
+ * This process guarantees that after N-1 rounds (where N is the number of teams),
+ * every possible unique pairing has been created.
+ *
+ * --- EXAMPLE USAGE ---
+ *
+ * $teamIds = [1, 2, 3, 4, 5, 6]; // Team IDs from your database
+ * $schedule = generateRoundRobinSchedule($teamIds);
+ *
+ * // The output ($schedule) will be an array of rounds, each containing match pairings.
+ * // e.g., [['round' => 1, 'home' => 1, 'away' => 6], ['round' => 1, 'home' => 2, 'away' => 5], ...]
+ *
+ * ---------------------
+ *
+ * @param array $teams An array of unique team IDs.
  * @return array A multi-dimensional array representing the schedule.
- *               Each top-level element represents a round, and each
- *               sub-element represents a match in that round.
- *               Example:
- *               [
- *                   // Round 1
- *                   [
- *                       ['teamA' => 1, 'teamB' => 6],
- *                       ['teamA' => 2, 'teamB' => 5],
- *                       ['teamA' => 3, 'teamB' => 4],
- *                   ],
- *                   // Round 2
- *                   [
- *                       ['teamA' => 6, 'teamB' => 5],
- *                       // ... and so on
- *                   ]
- *               ]
+ *               Returns an empty array if there are fewer than 2 teams.
  */
 function generateRoundRobinSchedule(array $teams): array
 {
-    // If there's an odd number of teams, add a "bye" to make it even.
-    if (count($teams) % 2 !== 0) {
-        $teams[] = null; // Represents a bye
+    // At least two teams are required to make a schedule.
+    if (count($teams) < 2) {
+        return [];
     }
 
-    $numTeams = count($teams);
+    // If the number of teams is odd, add a "bye" (represented by null).
+    // This makes the scheduling algorithm much simpler.
+    if (count($teams) % 2 !== 0) {
+        $teams[] = null;
+    }
+
+    $teamCount = count($teams);
     $rounds = [];
-    $numRounds = $numTeams - 1;
-    $matchesPerRound = $numTeams / 2;
+    $matchesPerRound = $teamCount / 2;
+    $totalRounds = $teamCount - 1;
 
-    // Create a copy of the teams array to manipulate
-    $scheduleTeams = $teams;
+    // Split teams into two halves for the rotation algorithm.
+    $topRow = array_slice($teams, 0, $matchesPerRound);
+    $bottomRow = array_reverse(array_slice($teams, $matchesPerRound));
 
-    for ($round = 0; $round < $numRounds; $round++) {
+    for ($roundNum = 1; $roundNum <= $totalRounds; $roundNum++) {
         $currentRoundMatches = [];
         for ($i = 0; $i < $matchesPerRound; $i++) {
-            $teamA = $scheduleTeams[$i];
-            $teamB = $scheduleTeams[$numTeams - 1 - $i];
+            $homeTeam = $topRow[$i];
+            $awayTeam = $bottomRow[$i];
 
-            // Only add the match if neither team is a "bye"
-            if ($teamA !== null && $teamB !== null) {
-                // To ensure fair home/away distribution, alternate the pairing order
-                if ($i % 2 === 0) {
-                    $currentRoundMatches[] = ['teamA' => $teamA, 'teamB' => $teamB];
+            // If a pairing includes the "bye", it's not a real match, so we skip it.
+            if ($homeTeam !== null && $awayTeam !== null) {
+                // To balance home/away games, we can swap them on alternate rounds.
+                if ($roundNum % 2 !== 0) {
+                    $currentRoundMatches[] = ['home' => $homeTeam, 'away' => $awayTeam];
                 } else {
-                    $currentRoundMatches[] = ['teamA' => $teamB, 'teamB' => $teamA];
+                    $currentRoundMatches[] = ['home' => $awayTeam, 'away' => $homeTeam];
                 }
             }
         }
-        $rounds[] = $currentRoundMatches;
+        $rounds[$roundNum] = $currentRoundMatches;
 
-        // Rotate the teams for the next round
-        // The first team stays in place, the rest rotate
-        $lastTeam = array_pop($scheduleTeams);
-        array_splice($scheduleTeams, 1, 0, [$lastTeam]);
+        // Now, rotate the teams for the next round (the "Circle Method").
+        // The first team in the top row is "pinned" and never moves.
+        $pinnedTeam = array_shift($topRow);
+
+        // The first team from the bottom row moves to the end of the top row.
+        $topRow[] = array_shift($bottomRow);
+
+        // The last team from the top row (before the new one was added) moves to the start of the bottom row.
+        array_unshift($bottomRow, array_pop($topRow));
+
+        // Put the pinned team back at the start of the top row.
+        array_unshift($topRow, $pinnedTeam);
     }
 
     return $rounds;
 }
-
-?>

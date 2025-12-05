@@ -10,7 +10,7 @@ class Database {
 
     public function connect() {
         $this->conn = null;
-        
+
         try {
             $this->conn = new PDO(
                 'mysql:host=' . $this->host . ';dbname=' . $this->db_name,
@@ -22,7 +22,7 @@ class Database {
         } catch(PDOException $e) {
             echo 'Connection Error: ' . $e->getMessage();
         }
-        
+
         return $this->conn;
     }
 }
@@ -40,21 +40,21 @@ function isLoggedIn() {
 
 function getCurrentUser() {
     if (!isLoggedIn()) return null;
-    
+
     $database = new Database();
     $db = $database->connect();
-    
+
     $query = "SELECT * FROM users WHERE id = :id";
     $stmt = $db->prepare($query);
     $stmt->bindParam(':id', $_SESSION['user_id']);
     $stmt->execute();
-    
+
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 function requireLogin() {
     if (!isLoggedIn()) {
-        header('Location: auth/login.php');
+        header('Location: /auth/login.php');
         exit();
     }
 }
@@ -63,7 +63,7 @@ function requireRole($role) {
     requireLogin();
     $user = getCurrentUser();
     if ($user['role'] !== $role && $user['role'] !== 'admin') {
-        header('Location: auth/dashboard.php');
+        header('Location: /dashboard.php');
         exit();
     }
 }
