@@ -193,6 +193,9 @@ if ($user['role'] == 'admin') {
             <div class="card">
                 <h3>Quick Actions</h3>
                 <a href="../league/create_league.php" class="btn btn-success">Create New League</a>
+                <a href="generate_matches.php" class="btn">Generate Matches</a>
+                <a href="record_scores.php" class="btn">Record Scores</a>
+                <a href="playoffs.php" class="btn">Manage Playoffs</a>
                 <a href="../admin/manage_users.php" class="btn">Manage Users</a>
                 <a href="../venue/manage_venues.php" class="btn">Manage Venues</a>
                 <a href="../admin/system_reports.php" class="btn btn-warning">View Reports</a>
