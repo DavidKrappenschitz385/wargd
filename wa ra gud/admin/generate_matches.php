@@ -1,137 +1,120 @@
 <?php
-// admin/generate_matches.php - Generate Round Robin Schedule
-require_once '../config/database.php';
-require_once '../league/schedule.php'; // Includes generateRoundRobinSchedule()
-requireRole('admin');
+// admin/generate_matches.php
+
+require_once 'header.php';
+require_once '../league/schedule.php'; // The Round Robin generator
 
 $pdo = (new Database())->connect();
-$message = '';
-$error = '';
+$message = ''; // For feedback
+$error = '';   // For errors
 
-// Handle schedule generation
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_schedule'])) {
-    $league_id = filter_input(INPUT_POST, 'league_id', FILTER_VALIDATE_INT);
+// Get all leagues to populate the dropdown
+try {
+    $leaguesStmt = $pdo->query("SELECT id, name FROM leagues ORDER BY name");
+    $leagues = $leaguesStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $error = "Error fetching leagues: " . $e->getMessage();
+    $leagues = [];
+}
 
-    if (!$league_id) {
-        $error = "Invalid league selected.";
+
+// --- FORM SUBMISSION LOGIC ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['league_id'], $_POST['match_date'])) {
+    $leagueId = (int)$_POST['league_id'];
+    $matchDate = $_POST['match_date'];
+
+    // Basic validation
+    if (empty($leagueId) || empty($matchDate)) {
+        $error = "Please select a league and a match date.";
     } else {
+        $pdo->beginTransaction();
         try {
-            // 1. Check if matches already exist for this league
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM matches WHERE league_id = ?");
-            $stmt->execute([$league_id]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("A schedule has already been generated for this league. Clear existing matches first if you want to regenerate.");
+            // 1. Check if matches already exist for this league to prevent duplicates
+            $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM matches WHERE league_id = ?");
+            $checkStmt->execute([$leagueId]);
+            if ($checkStmt->fetchColumn() > 0) {
+                throw new Exception("Matches have already been generated for this league.");
             }
 
             // 2. Get all approved teams for the selected league
-            $team_stmt = $pdo->prepare(
-                "SELECT t.id FROM teams t
-                 JOIN team_registration_requests trr ON t.name = trr.team_name AND t.league_id = trr.league_id
-                 WHERE t.league_id = ? AND trr.status = 'approved'"
-            );
-            $team_stmt->execute([$league_id]);
-            $team_ids = $team_stmt->fetchAll(PDO::FETCH_COLUMN);
+            $teamStmt = $pdo->prepare("SELECT t.id FROM teams t JOIN team_registration_requests trr ON t.id = trr.team_id WHERE trr.league_id = ? AND trr.status = 'approved'");
+            $teamStmt->execute([$leagueId]);
+            $teamIds = $teamStmt->fetchAll(PDO::FETCH_COLUMN);
 
-            if (count($team_ids) < 2) {
-                throw new Exception("Cannot generate a schedule. At least two approved teams are required.");
+            if (count($teamIds) < 2) {
+                throw new Exception("This league needs at least two approved teams to generate a schedule.");
             }
 
-            // 3. Generate the Round Robin schedule
-            $schedule = generateRoundRobinSchedule($team_ids);
+            // 3. Generate the schedule using the existing function
+            $schedule = generateRoundRobinSchedule($teamIds);
 
-            // 4. Insert matches into the database
-            $pdo->beginTransaction();
-            $match_stmt = $pdo->prepare(
-                "INSERT INTO matches (league_id, home_team_id, away_team_id, round, match_date, status)
-                 VALUES (?, ?, ?, ?, NOW(), 'scheduled')"
+            if (empty($schedule)) {
+                throw new Exception("Failed to generate the schedule.");
+            }
+
+            // 4. Insert the generated matches into the database
+            $insertMatchStmt = $pdo->prepare(
+                "INSERT INTO matches (league_id, home_team_id, away_team_id, round_number, match_date, status) VALUES (?, ?, ?, ?, ?, 'scheduled')"
             );
 
+            $matchCount = 0;
             foreach ($schedule as $roundNumber => $matches) {
                 foreach ($matches as $match) {
-                    // Ensure 'teamA' and 'teamB' keys exist and are not null
-                    if (isset($match['teamA'], $match['teamB'])) {
-                        $match_stmt->execute([
-                            $league_id,
-                            $match['teamA'],
-                            $match['teamB'],
-                            $roundNumber + 1 // Round numbers are 0-indexed in the function
-                        ]);
-                    }
+                    $insertMatchStmt->execute([
+                        $leagueId,
+                        $match['home'],
+                        $match['away'],
+                        $roundNumber,
+                        $matchDate
+                    ]);
+                    $matchCount++;
                 }
             }
 
             $pdo->commit();
-            $message = "Successfully generated " . count($schedule) . " rounds of matches for the league! 🔥";
+            $message = "Successfully generated and inserted $matchCount matches for $matchDate! 🔥";
 
         } catch (Exception $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            $error = "Error: " . $e->getMessage();
+            $pdo->rollBack();
+            $error = "An error occurred: " . $e->getMessage();
         }
     }
 }
-
-// Fetch active leagues to populate the dropdown
-try {
-    $leagues_stmt = $pdo->query("SELECT id, name FROM leagues WHERE status = 'active' ORDER BY name");
-    $active_leagues = $leagues_stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Exception $e) {
-    $error = "Could not fetch active leagues: " . $e->getMessage();
-    $active_leagues = [];
-}
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generate Match Schedule - Admin</title>
-    <style>
-        body { font-family: 'Arial', sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; }
-        .header { background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header h1 { margin: 0; }
-        .container { max-width: 800px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-        select, .btn { width: 100%; padding: 0.75rem; border-radius: 4px; font-size: 1rem; }
-        select { border: 1px solid #ddd; }
-        .btn { border: none; cursor: pointer; color: white; transition: background 0.3s; }
-        .btn-primary { background: #007bff; }
-        .btn-primary:hover { background: #0056b3; }
-        .alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-    </style>
-</head>
-<body>
-    <div class="header"><h1>🗓️ Generate Round-Robin Schedule</h1></div>
+<div class="card">
+    <div class="card-header">
+        <h2>Generate Matches</h2>
+    </div>
+    <div class="card-body">
+        <p>Select a league and a date to automatically generate a full schedule where every team plays each other once.</p>
 
-    <div class="container">
-        <?php if ($message): ?><div class="alert alert-success"><?php echo $message; ?></div><?php endif; ?>
-        <?php if ($error): ?><div class="alert alert-error"><?php echo $error; ?></div><?php endif; ?>
+        <?php if ($message): ?>
+            <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
+        <?php endif; ?>
+        <?php if ($error): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
 
-        <div class="alert alert-info">
-            <strong>How it works:</strong> Select an 'active' league, and the system will automatically generate a full round-robin schedule where every approved team plays every other team exactly once.
-        </div>
-
-        <form method="POST" onsubmit="return confirm('Are you sure you want to generate a new schedule? This cannot be undone if matches already exist.');">
+        <form action="generate_matches.php" method="post">
             <div class="form-group">
-                <label for="league_id">Select an Active League</label>
-                <select name="league_id" id="league_id" required>
+                <label for="league_id">Select League</label>
+                <select name="league_id" id="league_id" class="form-control" required>
                     <option value="">-- Choose a League --</option>
-                    <?php foreach ($active_leagues as $league): ?>
-                        <option value="<?php echo $league['id']; ?>"><?php echo htmlspecialchars($league['name']); ?></option>
+                    <?php foreach ($leagues as $league): ?>
+                        <option value="<?= $league['id'] ?>">
+                            <?= htmlspecialchars($league['name']) ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
-
-            <button type="submit" name="generate_schedule" class="btn btn-primary">
-                ⚡ Generate Schedule
-            </button>
+            <div class="form-group">
+                <label for="match_date">Match Date</label>
+                <input type="date" name="match_date" id="match_date" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Schedule</button>
         </form>
     </div>
-</body>
-</html>
+</div>
+
+<?php require_once 'footer.php'; ?>
