@@ -16,7 +16,7 @@ $current_user = getCurrentUser();
 // Get comprehensive league details
 $league_query = "SELECT l.*, s.name as sport_name, s.description as sport_description, s.max_players_per_team,
                         u.first_name as creator_first, u.last_name as creator_last, u.username as creator_username,
-                        (SELECT COUNT(*) FROM teams WHERE league_id = l.id) as current_teams
+                        (SELECT COUNT(*) FROM team_registration_requests WHERE league_id = l.id AND status = 'approved') as current_teams
                  FROM leagues l
                  JOIN sports s ON l.sport_id = s.id
                  JOIN users u ON l.created_by = u.id
@@ -65,17 +65,23 @@ if ($current_user['role'] != 'admin') {
 
 // Get teams with detailed information from the standings table
 $teams_query = "SELECT
-                    s.*,
-                    t.name as team_name,
-                    t.description as team_description,
-                    u.first_name,
-                    u.last_name,
+                    t.id as team_id, t.name as team_name, t.description as team_description,
+                    u.first_name, u.last_name,
+                    COALESCE(s.matches_played, 0) as matches_played,
+                    COALESCE(s.wins, 0) as wins,
+                    COALESCE(s.draws, 0) as draws,
+                    COALESCE(s.losses, 0) as losses,
+                    COALESCE(s.score_for, 0) as score_for,
+                    COALESCE(s.score_against, 0) as score_against,
+                    COALESCE(s.score_difference, 0) as score_difference,
+                    COALESCE(s.points, 0) as points,
                     (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
-                FROM standings s
-                JOIN teams t ON s.team_id = t.id
+                FROM team_registration_requests trr
+                JOIN teams t ON trr.team_id = t.id
                 JOIN users u ON t.owner_id = u.id
-                WHERE s.league_id = :league_id
-                ORDER BY s.points DESC, s.score_difference DESC, s.score_for DESC, t.name ASC";
+                LEFT JOIN standings s ON t.id = s.team_id AND s.league_id = trr.league_id
+                WHERE trr.league_id = :league_id AND trr.status = 'approved'
+                ORDER BY points DESC, score_difference DESC, score_for DESC, t.name ASC";
 $teams_stmt = $db->prepare($teams_query);
 $teams_stmt->bindParam(':league_id', $league_id);
 $teams_stmt->execute();
