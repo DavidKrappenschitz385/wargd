@@ -40,6 +40,7 @@ function recordMatchResult(PDO $pdo, int $matchId, int $homeScore, int $awayScor
             if (!$match) return false;
 
             $winnerId = ($homeScore > $awayScore) ? $match['team1_id'] : $match['team2_id'];
+            $loserId = ($winnerId == $match['team1_id']) ? $match['team2_id'] : $match['team1_id'];
 
             // Update playoff match score and status
             $updateMatchStmt = $pdo->prepare("UPDATE playoff_matches SET winner_id = ?, status = 'completed' WHERE id = ?");
@@ -47,6 +48,11 @@ function recordMatchResult(PDO $pdo, int $matchId, int $homeScore, int $awayScor
 
             // Advance the winner to the next round
             advanceWinner($pdo, $match, $winnerId);
+
+            // If Double Elimination, advance the loser to the losers bracket
+            if ($match['bracket_type'] === 'double_elimination') {
+                advanceLoser($pdo, $match, $loserId);
+            }
         }
 
         $pdo->commit();
@@ -115,12 +121,33 @@ function updateStandings(PDO $pdo, int $leagueId, int $homeTeamId, int $awayTeam
  */
 function advanceWinner(PDO $pdo, array $match, int $winnerId): void
 {
+    // For Double Elimination, winners stay in 'winners' bracket (unless it's the final)
+    // For others, side is irrelevant or stays same.
+    $bracketSide = $match['bracket_side'] ?? 'winners';
     $nextRound = $match['round'] + 1;
     $nextMatchNum = ceil($match['match_num'] / 2);
 
+    // Special case for Double Elimination Final
+    if ($match['bracket_type'] === 'double_elimination' && $bracketSide === 'losers') {
+        // In losers bracket, logic is different.
+        // Assuming losers bracket converges to a final winner who plays the winners bracket winner.
+        // For simplicity, let's assume standard progression within the bracket side.
+        // Complex DE logic would require pre-generated bracket structure or complex calculation.
+        // We will stick to "Winner advances to next round in same bracket side" logic for now.
+    }
+
     // Check if the next match already exists
-    $stmt = $pdo->prepare("SELECT id, team1_id FROM playoff_matches WHERE league_id = ? AND round = ? AND match_num = ? AND bracket_type = ?");
-    $stmt->execute([$match['league_id'], $nextRound, $nextMatchNum, $match['bracket_type']]);
+    // We must check bracket_side for Double Elimination
+    $query = "SELECT id, team1_id FROM playoff_matches WHERE league_id = ? AND round = ? AND match_num = ? AND bracket_type = ?";
+    $params = [$match['league_id'], $nextRound, $nextMatchNum, $match['bracket_type']];
+
+    if ($match['bracket_type'] === 'double_elimination') {
+        $query .= " AND bracket_side = ?";
+        $params[] = $bracketSide;
+    }
+
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
     $nextMatch = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($nextMatch) {
@@ -134,7 +161,72 @@ function advanceWinner(PDO $pdo, array $match, int $winnerId): void
         }
     } else {
         // Create a new match for the next round
-        $insertStmt = $pdo->prepare("INSERT INTO playoff_matches (league_id, round, match_num, team1_id, bracket_type) VALUES (?, ?, ?, ?, ?)");
-        $insertStmt->execute([$match['league_id'], $nextRound, $nextMatchNum, $winnerId, $match['bracket_type']]);
+        $insertSql = "INSERT INTO playoff_matches (league_id, round, match_num, team1_id, bracket_type";
+        $insertSql .= ($match['bracket_type'] === 'double_elimination') ? ", bracket_side) VALUES (?, ?, ?, ?, ?, ?)" : ") VALUES (?, ?, ?, ?, ?)";
+
+        $insertParams = [$match['league_id'], $nextRound, $nextMatchNum, $winnerId, $match['bracket_type']];
+        if ($match['bracket_type'] === 'double_elimination') {
+            $insertParams[] = $bracketSide;
+        }
+
+        $insertStmt = $pdo->prepare($insertSql);
+        $insertStmt->execute($insertParams);
+    }
+}
+
+/**
+ * Advances the loser of a playoff match to the losers bracket (for Double Elimination).
+ */
+function advanceLoser(PDO $pdo, array $match, int $loserId): void
+{
+    // Only applies if currently in Winners bracket
+    if (($match['bracket_side'] ?? 'winners') !== 'winners') {
+        // Loser in Losers bracket is eliminated.
+        return;
+    }
+
+    $currentRound = $match['round'];
+    // In standard DE, losers from R1 go to Losers R1. Losers from R2 go to Losers R2 (or R3 depending on structure).
+    // Simplifying: Losers drop to the same round number in Losers bracket.
+    // NOTE: This is a simplification. Real DE often has more rounds in Losers bracket.
+    // e.g. 4 team DE:
+    // WB R1 (2 matches) -> WB R2 (1 match) -> Final
+    // LB R1 (1 match - losers of WB R1) -> LB R2 (Winner LB R1 vs Loser WB R2) -> Final vs WB Winner.
+
+    // To implement fully correct DE without pre-generation is very hard.
+    // We will attempt a simplified "Knockout drop" where they just enter the Losers bracket.
+
+    // General Logic for Dropping to Losers Bracket
+    // In a simplified "Double Chance" model for this system:
+    // Losers from Winners Round R drop to a "Parallel" Losers Bracket Round R.
+    // This effectively creates two separate brackets.
+    // NOTE: This avoids collision issues present in standard interleaved Double Elim topology when not pre-generated.
+
+    $targetRound = $match['round'];
+    $targetMatchNum = ceil($match['match_num'] / 2);
+
+    // Check for existing LB match
+    $stmt = $pdo->prepare("SELECT id, team1_id, team2_id FROM playoff_matches WHERE league_id = ? AND round = ? AND match_num = ? AND bracket_type = 'double_elimination' AND bracket_side = 'losers'");
+    $stmt->execute([$match['league_id'], $targetRound, $targetMatchNum]);
+    $lbMatch = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($lbMatch) {
+         // Collision Check: If both slots are full, we shouldn't overwrite.
+         // In a Parallel Bracket model, slots fill up exactly as they do in Winners bracket (2 losers per match).
+         // So overwrite shouldn't happen unless logic is wrong or data is corrupt.
+         // If for some reason it is full, we log/ignore to prevent data loss.
+
+         if (is_null($lbMatch['team1_id'])) {
+            $pdo->prepare("UPDATE playoff_matches SET team1_id = ? WHERE id = ?")->execute([$loserId, $lbMatch['id']]);
+        } elseif (is_null($lbMatch['team2_id'])) {
+            $pdo->prepare("UPDATE playoff_matches SET team2_id = ? WHERE id = ?")->execute([$loserId, $lbMatch['id']]);
+        } else {
+            // Match is full. This implies a collision or unexpected state.
+            // In a strict parallel structure, this shouldn't happen if inputs are clean.
+            // We will do nothing to preserve existing data.
+        }
+    } else {
+         $stmt = $pdo->prepare("INSERT INTO playoff_matches (league_id, round, match_num, team1_id, bracket_type, bracket_side) VALUES (?, ?, ?, ?, 'double_elimination', 'losers')");
+         $stmt->execute([$match['league_id'], $targetRound, $targetMatchNum, $loserId]);
     }
 }

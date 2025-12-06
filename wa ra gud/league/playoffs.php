@@ -67,5 +67,13 @@ function generateDoubleElimination(array $teams): array
 {
     // A double-elimination bracket is just a single-elimination bracket
     // to start, so we can reuse the same logic.
+    // The winners bracket starts exactly like Single Elimination.
+    // We assume the caller will handle inserting with bracket_side='winners'.
+    // The Losers bracket is empty initially.
+
+    // However, if we want to be explicit, we could return a structure that indicates side.
+    // But existing caller in admin/generate_playoffs.php expects simple team1/team2 array.
+    // We will stick to generating the first round of Winners bracket here.
+
     return generateSingleElimination($teams);
 }
