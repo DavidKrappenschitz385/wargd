@@ -101,6 +101,14 @@ if (isset($_POST['submit_request'])) {
             
             if ($team_stmt->execute()) {
                 $team_id = $db->lastInsertId();
+
+                // 🔥 Add to standings
+                $standings_query = "INSERT INTO standings (league_id, team_id) VALUES (:league_id, :team_id)";
+                $standings_stmt = $db->prepare($standings_query);
+                $standings_stmt->bindParam(':league_id', $league_id);
+                $standings_stmt->bindParam(':team_id', $team_id);
+                $standings_stmt->execute();
+
                 showMessage("Team registered successfully!", "success");
                 echo '<script>setTimeout(function(){ window.location.href = "../team/view_team.php?id=' . $team_id . '"; }, 2000);</script>';
             } else {

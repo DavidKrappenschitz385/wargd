@@ -64,22 +64,8 @@ if ($current_user['role'] != 'admin') {
 }
 
 // Get teams with detailed information from the standings table
-$teams_query = "SELECT
-                    s.*,
-                    t.name as team_name,
-                    t.description as team_description,
-                    u.first_name,
-                    u.last_name,
-                    (SELECT COUNT(*) FROM team_members WHERE team_id = t.id AND status = 'active') as member_count
-                FROM standings s
-                JOIN teams t ON s.team_id = t.id
-                JOIN users u ON t.owner_id = u.id
-                WHERE s.league_id = :league_id
-                ORDER BY s.points DESC, s.score_difference DESC, s.score_for DESC, t.name ASC";
-$teams_stmt = $db->prepare($teams_query);
-$teams_stmt->bindParam(':league_id', $league_id);
-$teams_stmt->execute();
-$teams = $teams_stmt->fetchAll(PDO::FETCH_ASSOC);
+require_once 'standings_logic.php';
+$teams = getSortedStandings($db, $league_id);
 
 // Get all matches for this league
 $matches_query = "SELECT m.*, ht.name as home_team, at.name as away_team,

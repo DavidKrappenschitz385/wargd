@@ -36,12 +36,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['league_id'], $_POST['
             }
 
             // 2. Insert the generated matches into the database
+            // Note: Added bracket_side
             $insertMatchStmt = $pdo->prepare(
-                "INSERT INTO playoff_matches (league_id, round, match_num, team1_id, team2_id, bracket_type) VALUES (?, ?, ?, ?, ?, ?)"
+                "INSERT INTO playoff_matches (league_id, round, match_num, team1_id, team2_id, bracket_type, bracket_side) VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
 
             $matchCount = 0;
             foreach ($matches as $match) {
+                $bracketSide = $match['bracket_side'] ?? 'winners';
                 $insertMatchStmt->execute([
                     $leagueId,
                     1, // Initial round
@@ -49,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['league_id'], $_POST['
                     $match['team1'],
                     $match['team2'],
                     $bracketType,
+                    $bracketSide
                 ]);
                 $matchCount++;
             }

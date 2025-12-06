@@ -65,7 +65,16 @@ function generateSingleElimination(array $teams): array
  */
 function generateDoubleElimination(array $teams): array
 {
-    // A double-elimination bracket is just a single-elimination bracket
-    // to start, so we can reuse the same logic.
-    return generateSingleElimination($teams);
+    // Generate the initial Winners Bracket matches (Round 1)
+    $wbMatches = generateSingleElimination($teams);
+
+    // Mark them as 'winners' side
+    foreach ($wbMatches as &$match) {
+        $match['bracket_side'] = 'winners';
+    }
+    unset($match);
+
+    // Note: Losers Bracket matches are generated dynamically as teams lose in the Winners Bracket.
+
+    return $wbMatches;
 }
