@@ -348,9 +348,7 @@ CREATE TABLE IF NOT EXISTS `standings` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_league_team` (`league_id`,`team_id`),
-  FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+  UNIQUE KEY `unique_league_team` (`league_id`,`team_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -603,6 +601,13 @@ ALTER TABLE `registration_requests`
   ADD CONSTRAINT `registration_requests_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`),
   ADD CONSTRAINT `registration_requests_ibfk_3` FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`),
   ADD CONSTRAINT `registration_requests_ibfk_4` FOREIGN KEY (`processed_by`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `standings`
+--
+ALTER TABLE `standings`
+  ADD CONSTRAINT `standings_ibfk_1` FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `standings_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `teams`
