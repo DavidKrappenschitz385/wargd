@@ -36,9 +36,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['league_id'], $_POST['
             }
 
             // 2. Insert the generated matches into the database
-            $insertMatchStmt = $pdo->prepare(
-                "INSERT INTO playoff_matches (league_id, round, match_num, team1_id, team2_id, bracket_type) VALUES (?, ?, ?, ?, ?, ?)"
-            );
+            // Note: For Double Elimination, initial matches are in 'winners' bracket.
+            // We need to insert bracket_side if bracket_type is double_elimination.
+
+            $sql = "INSERT INTO playoff_matches (league_id, round, match_num, team1_id, team2_id, bracket_type";
+            if ($bracketType === 'double_elimination') {
+                $sql .= ", bracket_side) VALUES (?, ?, ?, ?, ?, ?, 'winners')";
+            } else {
+                $sql .= ") VALUES (?, ?, ?, ?, ?, ?)";
+            }
+
+            $insertMatchStmt = $pdo->prepare($sql);
 
             $matchCount = 0;
             foreach ($matches as $match) {

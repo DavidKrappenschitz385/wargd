@@ -64,6 +64,7 @@ if ($current_user['role'] != 'admin') {
 }
 
 // Get teams with detailed information from the standings table
+// We need to fetch without sorting first, then sort in PHP to handle Head-to-Head
 $teams_query = "SELECT
                     s.*,
                     t.name as team_name,
@@ -74,12 +75,69 @@ $teams_query = "SELECT
                 FROM standings s
                 JOIN teams t ON s.team_id = t.id
                 JOIN users u ON t.owner_id = u.id
-                WHERE s.league_id = :league_id
-                ORDER BY s.points DESC, s.score_difference DESC, s.score_for DESC, t.name ASC";
+                WHERE s.league_id = :league_id";
 $teams_stmt = $db->prepare($teams_query);
 $teams_stmt->bindParam(':league_id', $league_id);
 $teams_stmt->execute();
 $teams = $teams_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Pre-fetch all completed matches for Head-to-Head calculation
+$h2h_query = "SELECT home_team_id, away_team_id, home_score, away_score
+              FROM matches
+              WHERE league_id = :league_id AND status = 'completed'";
+$h2h_stmt = $db->prepare($h2h_query);
+$h2h_stmt->execute([':league_id' => $league_id]);
+$all_matches = $h2h_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Build Head-to-Head Matrix
+$h2hMatrix = [];
+foreach ($all_matches as $m) {
+    $h = $m['home_team_id'];
+    $a = $m['away_team_id'];
+    $hScore = $m['home_score'];
+    $aScore = $m['away_score'];
+
+    if (!isset($h2hMatrix[$h][$a])) $h2hMatrix[$h][$a] = 0;
+    if (!isset($h2hMatrix[$a][$h])) $h2hMatrix[$a][$h] = 0;
+
+    if ($hScore > $aScore) {
+        $h2hMatrix[$h][$a] += 3;
+    } elseif ($aScore > $hScore) {
+        $h2hMatrix[$a][$h] += 3;
+    } else {
+        $h2hMatrix[$h][$a] += 1;
+        $h2hMatrix[$a][$h] += 1;
+    }
+}
+
+// Implement sorting logic: Points > Head-to-Head > Score Diff > Score For > Name
+usort($teams, function($a, $b) use ($h2hMatrix) {
+    // 1. Points
+    if ($a['points'] !== $b['points']) {
+        return $b['points'] - $a['points'];
+    }
+
+    // 2. Head-to-Head (Points obtained in matches between the two teams)
+    $scoreA = $h2hMatrix[$a['team_id']][$b['team_id']] ?? 0;
+    $scoreB = $h2hMatrix[$b['team_id']][$a['team_id']] ?? 0;
+
+    if ($scoreA !== $scoreB) {
+        return $scoreB - $scoreA;
+    }
+
+    // 3. Score Difference
+    if ($a['score_difference'] !== $b['score_difference']) {
+        return $b['score_difference'] - $a['score_difference'];
+    }
+
+    // 4. Score For
+    if ($a['score_for'] !== $b['score_for']) {
+        return $b['score_for'] - $a['score_for'];
+    }
+
+    // 5. Name (Alphabetical)
+    return strcasecmp($a['team_name'], $b['team_name']);
+});
 
 // Get all matches for this league
 $matches_query = "SELECT m.*, ht.name as home_team, at.name as away_team,
