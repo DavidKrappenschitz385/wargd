@@ -35,6 +35,16 @@ class Database {
         try {
             $this->conn->query("SELECT 1 FROM playoff_matches LIMIT 1");
             // If query succeeds, table exists.
+
+            // Check for standings table existence
+            try {
+                $this->conn->query("SELECT 1 FROM standings LIMIT 1");
+            } catch (PDOException $e) {
+                 // Standings table missing, run updates to create it
+                 $this->runUpdates();
+                 return;
+            }
+
             // Check for new columns in existing tables (e.g. score_difference in standings)
             try {
                 $this->conn->query("SELECT score_difference FROM standings LIMIT 1");
@@ -50,6 +60,31 @@ class Database {
 
     private function runUpdates() {
         $updates = [
+            // 0. Create standings table (Split creation to fix Error 150)
+            "CREATE TABLE IF NOT EXISTS `standings` (
+              `id` int(11) NOT NULL AUTO_INCREMENT,
+              `league_id` int(11) NOT NULL,
+              `team_id` int(11) NOT NULL,
+              `wins` int(11) DEFAULT 0,
+              `losses` int(11) DEFAULT 0,
+              `draws` int(11) DEFAULT 0,
+              `matches_played` int(11) DEFAULT 0,
+              `points` int(11) DEFAULT 0,
+              `score_for` int(11) DEFAULT 0,
+              `score_against` int(11) DEFAULT 0,
+              `score_difference` int(11) DEFAULT 0,
+              `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+              `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+              PRIMARY KEY (`id`),
+              UNIQUE KEY `unique_league_team` (`league_id`,`team_id`),
+              KEY `idx_team_id` (`team_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+
+            // 0.1 Apply FK constraints for standings (if they don't exist)
+            // Note: We use try/catch in execution loop, so just attempting ALTER is fine
+            "ALTER TABLE `standings` ADD CONSTRAINT `fk_standings_league` FOREIGN KEY (`league_id`) REFERENCES `leagues` (`id`) ON DELETE CASCADE",
+            "ALTER TABLE `standings` ADD CONSTRAINT `fk_standings_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE",
+
             // 1. Create playoff_matches
             "CREATE TABLE IF NOT EXISTS `playoff_matches` (
               `id` int(11) NOT NULL AUTO_INCREMENT,
